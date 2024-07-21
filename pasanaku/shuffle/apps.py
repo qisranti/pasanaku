@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class UsersManagementConfig(AppConfig):
+class ShuffleConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'users_management'
+    name = 'shuffle'
