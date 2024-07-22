@@ -1,3 +1,4 @@
+from datetime import timezone
 from django.db import models
 from django.contrib.auth.models import User
 from .validators import validate_amount, validate_payment_day
@@ -11,9 +12,20 @@ class PasanakuGroup(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    expiration_date = models.DateField(editable=False)
+    is_active = models.BooleanField(default=True) 
 
     def __str__(self):
         return self.name
+    def save(self, *args, **kwargs):
+        # Calcular la fecha de expiración
+        today = timezone.now().date()
+        expiration_month = today.month + self.rounds
+        expiration_year = today.year + (expiration_month - 1) // 12
+        expiration_month = (expiration_month - 1) % 12 + 1
+        expiration_day = min(self.payment_day, 28)  # Manejar meses con menos de 30/31 días
+        self.expiration_date = today.replace(year=expiration_year, month=expiration_month, day=expiration_day)
+        super(PasanakuGroup, self).save(*args, **kwargs)
     
 class Member(models.Model):
     group = models.ForeignKey(PasanakuGroup, on_delete=models.CASCADE)
@@ -47,6 +59,10 @@ class Payment(models.Model):
         super().clean()
         expected_paid = self.round.group.bet
         validate_amount(self.amount, expected_paid)
+    
+    def save(self, *args, **kwargs):
+        self.full_clean() 
+        super().save(*args, **kwargs) 
     
     def __str__(self):
         return f"{self.amount} de {self.member.user.username} para la cuota: {self.round}"
